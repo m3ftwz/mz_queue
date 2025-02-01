@@ -21,7 +21,7 @@ AddEventHandler("onResourceStarting", function(resource)
 	end
 end)
 
-lib.cron.new('* */1 * * *', function()
+lib.cron.new('0 * * * *', function()
 	SetPrioritiesLists()
 	print("[^6QUEUE^0]:^2 Successfully auto-refreshed priorities queues^0")
 end)
