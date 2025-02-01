@@ -11,7 +11,7 @@ function RemoveFromConnectingClients(license)
 	end
 end
 
-function RemoveFromPrioritiesQueues(license)
+function RemoveFromPrioritiesLists(license)
 	if admins[license] then
 		admins[license] = nil
 		admins.count -= 1
@@ -23,7 +23,7 @@ function RemoveFromPrioritiesQueues(license)
 	end
 end
 
-function RefreshPriorities()
+function SetPrioritiesLists()
 	priorities.list, admins.list = {}, {}
 
 	local Queries = {
@@ -88,8 +88,6 @@ function QueueCard(deferrals, name, position, size)
 end
 
 Citizen.CreateThreadNow(function()
-	RefreshPriorities()
-
 	while true do
 		for k, player in pairs(connectingclients) do
 			if k ~= 'count' then
@@ -102,7 +100,7 @@ Citizen.CreateThreadNow(function()
 
 		if connectqueue:getSize() > 0 and connectedclients.count + connectingclients.count < maxclients then
 			local player = connectqueue:connect()
-			RemoveFromPrioritiesQueues(player.license)
+			RemoveFromPrioritiesLists(player.license)
 		end
 
 		Wait(1000)
@@ -155,7 +153,7 @@ AddEventHandler("playerConnecting", function (name, setKickReason, deferrals)
 			while connectqueue:getPosition(player) do
 				if GetPlayerPing(player.source) == 0 then
 					connectqueue:remove(player)
-					RemoveFromPrioritiesQueues(player.license)
+					RemoveFromPrioritiesLists(player.license)
 					print(("[^6QUEUE^0]: %s^0 removed from queue: connection lost"):format(player.name))
 					deferrals.done("Connection lost")
 					return

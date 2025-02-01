@@ -23,7 +23,7 @@ lib.addCommand('addpriority', {
 			TriggerClientEvent('ox_lib:notify', source, { description = locale('commands_notif_queue_add', args.queue_timespan, args.license) })
 		end
 
-		RefreshPriorities()
+		SetPrioritiesLists()
 
 		local name = source ~= 0 and GetPlayerName(source) or 'console'
 		lib.logger(source, 'admin', ('%s added queue priority to %s for %d day(s)'):format(name, args.license, args.queue_timespan))
@@ -51,7 +51,7 @@ lib.addCommand('removepriority', {
 			TriggerClientEvent('ox_lib:notify', source, { description = locale('commands_notif_queue_remove', timespan, args.license) })
 		end
 
-		RefreshPriorities()
+		SetPrioritiesLists()
 
 		local name = source ~= 0 and GetPlayerName(source) or 'console'
 		lib.logger(source, 'admin', ('%s removed queue priority from %s'):format(name, args.license))
