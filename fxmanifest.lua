@@ -4,7 +4,7 @@ lua54 'yes'
 game 'gta5'
 name 'mz_queue'
 author 'm3ftwz'
-version '0.1.0'
+version '1.0.0'
 repository 'https://github.com/m3ftwz/mz_queue'
 description 'A simple and efficient queue system for FiveM servers with real-time priorities handling.'
 
