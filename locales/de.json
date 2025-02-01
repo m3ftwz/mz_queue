@@ -1,0 +1,7 @@
+{
+  "queue_title": "Du bist in der Warteschlange",
+  "queue_server_full": "Hallo %s, der Server ist voll, aber keine Sorge, du stehst in der Warteschlange, um beizutreten.",
+  "queue_first_position": "Du bist als Erster in der Warteschlange, nur noch einen Moment...",
+  "queue_position": "Deine Position in der Warteschlange: %d von %d",
+  "queue_tired_of_waiting": "Müde vom Warten? Besuche unseren [Discord-Server](%s) und erfahre, wie du bevorzugten Eintritt erhalten kannst."
+}

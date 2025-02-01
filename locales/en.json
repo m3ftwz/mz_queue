@@ -1,0 +1,7 @@
+{
+  "queue_title": "You are in the queue",
+  "queue_server_full": "Hello %s, the server is full but don't worry, you are in the queue to join.",
+  "queue_first_position": "You are the first in the queue, just a moment longer...",
+  "queue_position": "Your position in the queue: %d out of %d",
+  "queue_tired_of_waiting": "Tired of waiting? Visit our [Discord server](%s) and learn how to get priority entry."
+}

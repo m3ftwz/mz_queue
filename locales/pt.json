@@ -1,0 +1,7 @@
+{
+  "queue_title": "Você está na fila",
+  "queue_server_full": "Olá %s, o servidor está cheio, mas não se preocupe, você está na fila para entrar.",
+  "queue_first_position": "Você é o primeiro na fila, só mais um instante...",
+  "queue_position": "Sua posição na fila: %d de %d",
+  "queue_tired_of_waiting": "Cansado de esperar? Visite nosso [servidor do Discord](%s) e saiba como obter entrada prioritária."
+}
