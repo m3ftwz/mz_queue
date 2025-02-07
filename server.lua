@@ -1,6 +1,7 @@
 require 'modules.mysql.server'
 require 'modules.queue.server'
 require 'modules.connection.server'
+require 'modules.events.server'
 require 'modules.commands.server'
 
 if GetConvar('mz_queue:versioncheck', 'true') == 'true' then

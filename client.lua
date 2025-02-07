@@ -1,5 +1,3 @@
-if not lib then return end
-
 CreateThread(function()
 	while true do
 		Wait(0)
