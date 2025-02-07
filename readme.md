@@ -7,9 +7,40 @@ A simple and efficient queue system for FiveM servers with real-time priorities 
 ![](https://img.shields.io/github/contributors/m3ftwz/mz_queue?logo=github)
 ![](https://img.shields.io/github/v/release/m3ftwz/mz_queue?logo=github)
 
-## 💾 Download
+## Documentation
+
+### Commands usage
+
+1. **addpriority**: grant priority queue privileges to a player for a specified number of days, after which the privilege will expire.
+```yaml
+/addpriority [license] [timespan]
+```
+
+2. **removepriority**: remove priority queue privileges from a player.
+```
+/removepriority [license]
+```
+
+### Priority lists auto-update
+The priority lists automatically update every 1 hour or everytime a priority added or removed.
+
+## Download
 
 https://github.com/m3ftwz/mz_queue/releases/latest/download/mz_queue.zip
+
+## Supported frameworks
+
+Compatibility or support for third-party resources is not guaranteed.
+
+- [esx](https://github.com/esx-framework/esx_core)
+
+## Features
+
+- Real-Time Priority Handling: Adjust player priority dynamically based on their admin role or status (eg. paying player).
+- Fair and Transparent Queueing: Ensures that players are handled efficiently and in a structured manner.
+- Performance Optimized: Lightweight and efficient, minimizing server load while maximizing queue management.
+- Easy to Configure: Simple setup with custom commands to fit your server’s needs.
+- Auto-Kick for Inactivity: Keeps the queue moving by automatically removing inactive players.
 
 ## Copyright
 
