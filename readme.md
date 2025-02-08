@@ -14,15 +14,29 @@ A simple and efficient queue system for FiveM servers with real-time priorities 
 1. **addpriority**: grant priority queue privileges to a player for a specified number of days, after which the privilege will expire.
 ```yaml
 /addpriority [license] [timespan]
+
+# Example usage
+/addpriority 57963d7406028280fea46d319d76eee64485a033 7
+
+# The command above will grant user with the given license queue privileges for 7 days
 ```
 
 2. **removepriority**: remove priority queue privileges from a player.
-```
+```yaml
 /removepriority [license]
+
+# Example usage
+/removepriority 57963d7406028280fea46d319d76eee64485a033
+
+# The command above will remove queue privileges from the user with the given license
 ```
 
-### Priority lists auto-update
-The priority lists automatically update every 1 hour or everytime a priority added or removed.
+### Priority lists auto-refresh
+
+The priority lists automatically refresh:
+- at the beginning of every hour (e.g., 11:00, 12:00, etc.)
+- everytime a priority is added or removed
+- everytime a user is set or unset as an admin
 
 ## Download
 
