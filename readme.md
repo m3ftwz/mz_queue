@@ -56,6 +56,11 @@ Compatibility or support for third-party resources is not guaranteed.
 - Easy to Configure: Simple setup with custom commands to fit your server’s needs.
 - Auto-Kick for Inactivity: Keeps the queue moving by automatically removing inactive players.
 
+## Screenshot(s)
+
+![First in queue example](https://github.com/user-attachments/assets/7e955a80-7a82-4d77-9cba-c52433e68467)
+![Other positions example](https://github.com/user-attachments/assets/cf46ca57-31b1-49c2-8114-68dd4939a7ed)
+
 ## Copyright
 
 Copyright © 2025 m3ftwz <https://github.com/m3ftwz>
