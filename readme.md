@@ -63,4 +63,4 @@ Compatibility or support for third-party resources is not guaranteed.
 
 ## License
 
-Licensed under the [GNU Lesser General Public License v3.0 or later](license).
+Licensed under the [GNU Lesser General Public License v3.0 or later](LICENSE).

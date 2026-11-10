@@ -42,7 +42,7 @@ jobs:
       - name: Bundle files
         run: |
           mkdir -p ./temp/mz_queue
-          cp ./{server.lua,readme.md,license,COPYING,fxmanifest.lua,client.lua,init.lua} ./temp/mz_queue
+          cp ./{server.lua,readme.md,LICENSE,fxmanifest.lua,client.lua,init.lua} ./temp/mz_queue
           cp -r ./{modules,locales} ./temp/mz_queue
           cd ./temp && zip -r ../mz_queue.zip ./mz_queue
 
