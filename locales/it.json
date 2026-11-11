@@ -3,5 +3,13 @@
   "queue_server_full": "Ciao %s, il server è pieno ma non ti preoccupare, sei in coda per entrare.",
   "queue_first_position": "Sei il primo in coda, ancora qualche istante...",
   "queue_position": "La tua posizione in coda: %d su %d",
-  "queue_tired_of_waiting": "Stanco di aspettare? Visita il nostro [server Discord](%s) e scopri come ottenere l'ingresso prioritario."
+  "queue_tired_of_waiting": "Stanco di aspettare? Visita il nostro [server Discord](%s) e scopri come ottenere l'ingresso prioritario.",
+  "commands_queue_add": "Concedi la priorità in coda a un giocatore.",
+  "commands_queue_remove": "Rimuovi la priorità in coda di un giocatore.",
+  "commands_params_license": "Identificativo della licenza del giocatore senza il prefisso license:.",
+  "commands_params_queue_timespan": "Durata della priorità in giorni (numero intero positivo).",
+  "commands_notif_queue_add": "Priorità in coda concessa per %d giorno/i alla licenza %s.",
+  "commands_notif_queue_add_invalid_timespan": "La durata deve essere un numero intero positivo di giorni.",
+  "commands_notif_queue_remove": "Priorità in coda rimossa per la licenza %s.",
+  "commands_notif_queue_remove_not_found": "Nessuna priorità in coda trovata per la licenza %s."
 }

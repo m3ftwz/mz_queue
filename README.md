@@ -11,7 +11,7 @@ A simple and efficient queue system for FiveM servers with real-time priorities 
 
 ### Commands usage
 
-1. **addpriority**: grant priority queue privileges to a player for a specified number of days, after which the privilege will expire.
+1. **addpriority**: grant priority queue privileges to a player for a positive whole number of days, after which the privilege will expire.
 ```yaml
 /addpriority [license] [timespan]
 
@@ -38,6 +38,8 @@ The priority lists automatically refresh:
 - everytime a priority is added or removed
 - everytime a user is set or unset as an admin
 
+Changes also reorder players already waiting in the queue. Admins join before priority players, followed by regular players; arrival order is preserved within each group.
+
 ## Download
 
 https://github.com/m3ftwz/mz_queue/releases/latest/download/mz_queue.zip
@@ -60,6 +62,16 @@ Compatibility or support for third-party resources is not guaranteed.
 
 ![First in queue example](https://github.com/user-attachments/assets/7e955a80-7a82-4d77-9cba-c52433e68467)
 ![Other positions example](https://github.com/user-attachments/assets/cf46ca57-31b1-49c2-8114-68dd4939a7ed)
+
+## Development
+
+Run the server regression tests from the repository root with Lua 5.4:
+
+```sh
+lua tests/server.lua
+```
+
+The tests simulate FiveM events, connection timing, and database responses. Live FXServer and database integration should also be checked before deployment.
 
 ## License
 

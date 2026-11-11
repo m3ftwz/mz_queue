@@ -3,5 +3,13 @@
   "queue_server_full": "Hola %s, el servidor está lleno, pero no te preocupes, estás en la cola para unirte.",
   "queue_first_position": "Eres el primero en la cola, solo un momento más...",
   "queue_position": "Tu posición en la cola: %d de %d",
-  "queue_tired_of_waiting": "¿Cansado de esperar? Visita nuestro [servidor de Discord](%s) y descubre cómo obtener entrada prioritaria."
+  "queue_tired_of_waiting": "¿Cansado de esperar? Visita nuestro [servidor de Discord](%s) y descubre cómo obtener entrada prioritaria.",
+  "commands_queue_add": "Conceder prioridad en la cola a un jugador.",
+  "commands_queue_remove": "Quitar la prioridad en la cola a un jugador.",
+  "commands_params_license": "Identificador de licencia del jugador sin el prefijo license:.",
+  "commands_params_queue_timespan": "Duración de la prioridad en días (número entero positivo).",
+  "commands_notif_queue_add": "Se ha concedido prioridad en la cola durante %d día(s) a la licencia %s.",
+  "commands_notif_queue_add_invalid_timespan": "La duración debe ser un número entero positivo de días.",
+  "commands_notif_queue_remove": "Se ha quitado la prioridad en la cola a la licencia %s.",
+  "commands_notif_queue_remove_not_found": "No se ha encontrado prioridad en la cola para la licencia %s."
 }

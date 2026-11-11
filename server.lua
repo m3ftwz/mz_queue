@@ -23,10 +23,13 @@ AddEventHandler("onResourceStarting", function(resource)
 end)
 
 lib.cron.new('0 * * * *', function()
-	SetPrioritiesLists()
-	print("[^6QUEUE^0]:^2 Successfully auto-refreshed priorities queues^0")
+	if SetPrioritiesLists() then
+		print("[^6QUEUE^0]:^2 Successfully auto-refreshed priorities queues^0")
+	end
 end)
 
-SetTimeout(5000, function()
-	SetPrioritiesLists()
+CreateThread(function()
+	while not SetPrioritiesLists() do
+		Wait(1000)
+	end
 end)

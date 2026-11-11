@@ -3,5 +3,13 @@
   "queue_server_full": "Hallo %s, der Server ist voll, aber keine Sorge, du stehst in der Warteschlange, um beizutreten.",
   "queue_first_position": "Du bist als Erster in der Warteschlange, nur noch einen Moment...",
   "queue_position": "Deine Position in der Warteschlange: %d von %d",
-  "queue_tired_of_waiting": "Müde vom Warten? Besuche unseren [Discord-Server](%s) und erfahre, wie du bevorzugten Eintritt erhalten kannst."
+  "queue_tired_of_waiting": "Müde vom Warten? Besuche unseren [Discord-Server](%s) und erfahre, wie du bevorzugten Eintritt erhalten kannst.",
+  "commands_queue_add": "Einem Spieler Priorität in der Warteschlange gewähren.",
+  "commands_queue_remove": "Die Warteschlangenpriorität eines Spielers entfernen.",
+  "commands_params_license": "Lizenzkennung des Spielers ohne das Präfix license:.",
+  "commands_params_queue_timespan": "Dauer der Priorität in Tagen (positive ganze Zahl).",
+  "commands_notif_queue_add": "Priorität in der Warteschlange für %d Tag(e) an Lizenz %s vergeben.",
+  "commands_notif_queue_add_invalid_timespan": "Die Dauer muss eine positive ganze Zahl von Tagen sein.",
+  "commands_notif_queue_remove": "Warteschlangenpriorität für Lizenz %s entfernt.",
+  "commands_notif_queue_remove_not_found": "Keine Warteschlangenpriorität für Lizenz %s gefunden."
 }

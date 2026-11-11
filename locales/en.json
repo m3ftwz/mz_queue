@@ -3,5 +3,13 @@
   "queue_server_full": "Hello %s, the server is full but don't worry, you are in the queue to join.",
   "queue_first_position": "You are the first in the queue, just a moment longer...",
   "queue_position": "Your position in the queue: %d out of %d",
-  "queue_tired_of_waiting": "Tired of waiting? Visit our [Discord server](%s) and learn how to get priority entry."
+  "queue_tired_of_waiting": "Tired of waiting? Visit our [Discord server](%s) and learn how to get priority entry.",
+  "commands_queue_add": "Grant queue priority to a player.",
+  "commands_queue_remove": "Remove queue priority from a player.",
+  "commands_params_license": "Player's license identifier without the license: prefix.",
+  "commands_params_queue_timespan": "Number of days to grant priority (positive whole number).",
+  "commands_notif_queue_add": "Granted queue priority for %d day(s) to license %s.",
+  "commands_notif_queue_add_invalid_timespan": "The duration must be a positive whole number of days.",
+  "commands_notif_queue_remove": "Removed queue priority from license %s.",
+  "commands_notif_queue_remove_not_found": "No queue priority found for license %s."
 }

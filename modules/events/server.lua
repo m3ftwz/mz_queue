@@ -3,5 +3,5 @@ AddEventHandler('esx:setGroup', function(source, group, lastGroup)
         return
     end
 
-    SetPrioritiesLists()
+    SetQueueAdmin(source, group == 'admin')
 end)

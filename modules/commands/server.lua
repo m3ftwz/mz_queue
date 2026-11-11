@@ -14,7 +14,8 @@ lib.addCommand('addpriority', {
     },
     restricted = 'group.admin'
 }, function(source, args)
-	if args.queue_timespan > 0 then
+	if args.queue_timespan > 0 and args.queue_timespan % 1 == 0 then
+		EnsureQueueSchema()
 		MySQL.insert.await('INSERT INTO `queue_priority` (`identifier`, `expires_on`) VALUES (?, NOW() + INTERVAL ? DAY) ON DUPLICATE KEY UPDATE `expires_on` = VALUES(`expires_on`)',
 			{ args.license, args.queue_timespan }
 		)
@@ -45,10 +46,11 @@ lib.addCommand('removepriority', {
     },
     restricted = 'group.admin'
 }, function(source, args)
-	local result = MySQL.query.await('DELETE FROM `queue_priority` WHERE `identifier` = ?', { args.license })
-	if result and #result > 0 then
+	EnsureQueueSchema()
+	local affectedRows = MySQL.update.await('DELETE FROM `queue_priority` WHERE `identifier` = ?', { args.license })
+	if affectedRows and affectedRows > 0 then
 		if source ~= 0 then
-			TriggerClientEvent('ox_lib:notify', source, { description = locale('commands_notif_queue_remove', timespan, args.license) })
+			TriggerClientEvent('ox_lib:notify', source, { description = locale('commands_notif_queue_remove', args.license) })
 		end
 
 		SetPrioritiesLists()

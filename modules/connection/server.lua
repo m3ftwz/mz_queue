@@ -2,197 +2,296 @@ local connectqueue = Queue()
 local maxclients = GetConvarInt('sv_maxclients', 48)
 
 local connectedclients, connectingclients = { count = 0 }, { count = 0 }
-local priorities, admins = { count = 0 }, { count = 0 }
+local queuedclients, licensesBySource = {}, {}
+local priorities, admins, adminOverrides = {}, {}, {}
+local prioritiesReady = false
+local refreshVersion, arrivalOrder = 0, 0
 
-function RemoveFromConnectingClients(license)
-	if connectingclients[license] then
-		connectingclients[license] = nil
-		connectingclients.count -= 1
-	end
+local function normalizeIdentifier(identifier)
+    if type(identifier) ~= 'string' or identifier == '' then
+        return nil
+    end
+
+    local license = identifier:match('^[^:]+:(.*)$') or identifier
+    return license ~= '' and license or nil
 end
 
-function RemoveFromPrioritiesLists(license)
-	if admins[license] then
-		admins[license] = nil
-		admins.count -= 1
-	end
+local function getQueueLicense(playerSource)
+    return normalizeIdentifier(GetPlayerIdentifierByType(playerSource, 'license'))
+end
 
-	if priorities[license] then
-		priorities[license] = nil
-		priorities.count -= 1
-	end
+local function getPriority(player)
+    if admins[player.license] then
+        return 1
+    end
+
+    return priorities[player.license] and 2 or 3
+end
+
+local function sortQueue()
+    table.sort(connectqueue, function(a, b)
+        local aPriority, bPriority = getPriority(a), getPriority(b)
+        if aPriority == bPriority then
+            return a.order < b.order
+        end
+
+        return aPriority < bPriority
+    end)
+end
+
+function RemoveFromConnectingClients(license)
+    local player = connectingclients[license]
+    if player then
+        licensesBySource[player.source] = nil
+        connectingclients[license] = nil
+        connectingclients.count = connectingclients.count - 1
+    end
+end
+
+local function reserveSlot(player)
+    connectingclients[player.license] = player
+    connectingclients.count = connectingclients.count + 1
+end
+
+function SetQueueAdmin(playerSource, isAdmin)
+    local license = getQueueLicense(playerSource)
+    if not license then
+        return
+    end
+
+    -- Keep role changes authoritative until ESX has saved them to the database.
+    adminOverrides[license] = isAdmin
+    admins[license] = isAdmin or nil
+    sortQueue()
 end
 
 function SetPrioritiesLists()
-	priorities.list, admins.list = {}, {}
+    refreshVersion = refreshVersion + 1
+    local version = refreshVersion
 
-	local Queries = {
-		GET_PRIORITIES = "SELECT `identifier` FROM `queue_priority`",
-		GET_ADMINS = "SELECT `identifier` FROM `users` WHERE `group` = 'admin'",
-		DELETE_EXPIRED_PRIORITIES = "DELETE FROM `queue_priority` WHERE expires_on < NOW()"
-	}
+    local success, newPriorities, newAdmins = pcall(function()
+        EnsureQueueSchema()
+        MySQL.update.await('DELETE FROM `queue_priority` WHERE `expires_on` < NOW()')
 
-	MySQL.query.await(Queries['DELETE_EXPIRED_PRIORITIES'])
+        local priorityRows = MySQL.query.await('SELECT `identifier` FROM `queue_priority`')
+        local adminRows = MySQL.query.await("SELECT `identifier` FROM `users` WHERE `group` = 'admin'")
+        assert(type(priorityRows) == 'table' and type(adminRows) == 'table', 'Could not load queue priorities')
 
-	local priorities_query = MySQL.query.await(Queries['GET_PRIORITIES'])
-	if priorities_query then
-		for i = 1, #priorities_query do
-			priorities.list[priorities_query[i].identifier] = true
-		end
-	end
+        local loadedPriorities, loadedAdmins = {}, {}
+        for i = 1, #priorityRows do
+            local license = normalizeIdentifier(priorityRows[i].identifier)
+            if license then
+                loadedPriorities[license] = true
+            end
+        end
 
-	local admins_query = MySQL.query.await(Queries['GET_ADMINS'])
-	if admins_query then
-		for i = 1, #admins_query do
-			local license = admins_query[i].identifier
-			admins.list[string.sub(license, string.find(license, ':') + 1, #license)] = true
-		end
-	end
+        for i = 1, #adminRows do
+            local license = normalizeIdentifier(adminRows[i].identifier)
+            if license then
+                loadedAdmins[license] = true
+            end
+        end
+
+        return loadedPriorities, loadedAdmins
+    end)
+
+    if not success then
+        print(('^1[QUEUE]: Could not refresh priorities: %s^0'):format(newPriorities))
+        return false
+    end
+
+    -- A slower refresh must not overwrite the result of a newer request.
+    if version ~= refreshVersion then
+        return false
+    end
+
+    for license, isAdmin in pairs(adminOverrides) do
+        if (newAdmins[license] == true) == isAdmin then
+            adminOverrides[license] = nil
+        end
+        newAdmins[license] = isAdmin or nil
+    end
+
+    priorities, admins = newPriorities, newAdmins
+    prioritiesReady = true
+    sortQueue()
+    return true
 end
 
 function QueueCard(deferrals, name, position, size)
-	local queuemessage = position == 1 and "queue_first_position" or "queue_position"
-	deferrals.presentCard([==[{
-		"type": "AdaptiveCard",
-		"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-		"version": "1.5",
-		"body": [
-			{
-				"type": "TextBlock",
-				"text": "]==] .. locale("queue_title") .. [==[",
-				"wrap": true,
-				"fontType": "Default",
-				"style": "heading",
-				"size": "ExtraLarge"
-			},
-			{
-				"type": "TextBlock",
-				"text": "]==] .. locale("queue_server_full", name) .. [==[",
-				"wrap": true,
-				"size": "Medium"
-			},
-			{
-				"type": "TextBlock",
-				"text": "]==] .. locale(queuemessage, position, size) .. [==[",
-				"wrap": true,
-				"size": "Medium"
-			},
-			{
-				"type": "TextBlock",
-				"text": "]==] .. locale("queue_tired_of_waiting", GetConvar('discord', 'https://discord.gg/')) .. [==[",
-				"wrap": true,
-				"spacing": "Medium"
-			}
-			]
-	}]==])
+    local queuemessage = position == 1 and 'queue_first_position' or 'queue_position'
+    deferrals.presentCard({
+        type = 'AdaptiveCard',
+        ['$schema'] = 'http://adaptivecards.io/schemas/adaptive-card.json',
+        version = '1.5',
+        body = {
+            {
+                type = 'TextBlock',
+                text = locale('queue_title'),
+                wrap = true,
+                fontType = 'Default',
+                style = 'heading',
+                size = 'ExtraLarge',
+            },
+            {
+                type = 'TextBlock',
+                text = locale('queue_server_full', name),
+                wrap = true,
+                size = 'Medium',
+            },
+            {
+                type = 'TextBlock',
+                text = locale(queuemessage, position, size),
+                wrap = true,
+                size = 'Medium',
+            },
+            {
+                type = 'TextBlock',
+                text = locale('queue_tired_of_waiting', GetConvar('discord', 'https://discord.gg/')),
+                wrap = true,
+                spacing = 'Medium',
+            },
+        },
+    })
 end
 
 Citizen.CreateThreadNow(function()
-	while true do
-		for k, player in pairs(connectingclients) do
-			if k ~= 'count' then
-				if GetPlayerPing(player.source) == 0 then
-					connectingclients[k] = nil
-					connectingclients.count -= 1
-				end
-			end
-		end
+    while true do
+        for license, player in pairs(connectingclients) do
+            if license ~= 'count' and GetPlayerPing(player.source) == 0 then
+                RemoveFromConnectingClients(license)
+            end
+        end
 
-		if connectqueue:getSize() > 0 and connectedclients.count + connectingclients.count < maxclients then
-			local player = connectqueue:connect()
-			RemoveFromPrioritiesLists(player.license)
-		end
+        if prioritiesReady and connectqueue:getSize() > 0
+            and connectedclients.count + connectingclients.count < maxclients then
+            local player = connectqueue:connect()
+            queuedclients[player.license] = nil
 
-		Wait(1000)
-	end
+            if GetPlayerPing(player.source) ~= 0 then
+                -- Reserve before the deferred connection resumes or another player arrives.
+                reserveSlot(player)
+            end
+        end
+
+        Wait(1000)
+    end
 end)
 
-AddEventHandler("playerConnecting", function (name, setKickReason, deferrals)
-	local license = GetPlayerIdentifierByType(source, 'license'):gsub('license:', '')
+AddEventHandler('playerConnecting', function(name, setKickReason, deferrals)
+    local license = getQueueLicense(source)
+    if not license then
+        setKickReason('Invalid license, please restart FiveM and retry.')
+        CancelEvent()
+        return
+    end
 
-	if not license then
-		CancelEvent()
-        setKickReason("Invalid license, please restart FiveM and retry.")
-		return
-	end
+    arrivalOrder = arrivalOrder + 1
+    local player = {
+        source = source,
+        name = name,
+        license = license,
+        order = arrivalOrder,
+    }
 
-	local player = {
-		source = source,
-		name = name,
-		license = license,
-		timeout = 0,
-	}
+    deferrals.defer()
+    Wait(50)
+    deferrals.update('Handshaking with the server...')
+    Wait(0)
 
-	deferrals.defer()
+    if connectedclients[license] or connectingclients[license] or queuedclients[license] then
+        deferrals.done('A connection with this license is already in progress.')
+        return
+    end
 
-	Wait(50)
+    -- Track pending connections too, including those waiting for initialization.
+    queuedclients[license] = player
+    licensesBySource[player.source] = license
+    while not prioritiesReady do
+        if GetPlayerPing(player.source) == 0 then
+            queuedclients[license], licensesBySource[player.source] = nil, nil
+            deferrals.done('Connection lost')
+            return
+        end
+        Wait(100)
+    end
 
-	deferrals.update('Handshaking with the server...')
+    if GetPlayerPing(player.source) == 0 then
+        queuedclients[license], licensesBySource[player.source] = nil, nil
+        deferrals.done('Connection lost')
+        return
+    end
 
-	if not connectingclients[player.license] then
-		if connectedclients.count + connectingclients.count >= maxclients then
-			if admins.list[player.license] then
-				if not admins[player.license] then
-					admins[player.license] = true
-					admins.count += 1
-				end
-				connectqueue:insert(player, admins.count)
-				print(("[^6QUEUE^0]: %s^0 queued at position #%d (admin)"):format(player.name, admins.count))
-			elseif priorities.list[player.license] then
-				if not priorities[player.license] then
-					priorities[player.license] = true
-					priorities.count += 1
-				end
-				connectqueue:insert(player, admins.count + priorities.count)
-				print(("[^6QUEUE^0]: %s^0 queued at position #%d (priority)"):format(player.name, admins.count + priorities.count))
-			else
-				connectqueue:insert(player)
-				print(("[^6QUEUE^0]: %s^0 queued at position #%d"):format(player.name, connectqueue:getSize()))
-			end
+    if connectqueue:getSize() > 0 or connectedclients.count + connectingclients.count >= maxclients then
+        connectqueue:insert(player)
+        sortQueue()
+        print(('[^6QUEUE^0]: %s^0 queued at position #%d'):format(player.name, connectqueue:getPosition(player)))
 
-			while connectqueue:getPosition(player) do
-				if GetPlayerPing(player.source) == 0 then
-					connectqueue:remove(player)
-					RemoveFromPrioritiesLists(player.license)
-					print(("[^6QUEUE^0]: %s^0 removed from queue: connection lost"):format(player.name))
-					deferrals.done("Connection lost")
-					return
-				end
+        while connectqueue:getPosition(player) do
+            if GetPlayerPing(player.source) == 0 then
+                connectqueue:remove(player)
+                queuedclients[license], licensesBySource[player.source] = nil, nil
+                print(('[^6QUEUE^0]: %s^0 removed from queue: connection lost'):format(player.name))
+                deferrals.done('Connection lost')
+                return
+            end
 
-				QueueCard(deferrals, name, connectqueue:getPosition(player), connectqueue:getSize())
+            QueueCard(deferrals, name, connectqueue:getPosition(player), connectqueue:getSize())
+            Wait(500)
+        end
+    else
+        queuedclients[license] = nil
+        reserveSlot(player)
+    end
 
-				Wait(500)
-			end
-		end
-		connectingclients.count += 1
-	end
-	connectingclients[player.license] = player
+    Wait(0)
+    if connectingclients[license] ~= player then
+        licensesBySource[player.source] = nil
+        deferrals.done('Connection lost')
+        return
+    end
 
-	Wait(0)
-
-	deferrals.done()
-
-	print(("[^6QUEUE^0]: %s^0 joined the server"):format(player.name))
+    deferrals.done()
+    print(('[^6QUEUE^0]: %s^0 joined the server'):format(player.name))
 end)
 
-RegisterNetEvent("mz_queue:playerConnected", function()
-	local license = GetPlayerIdentifierByType(source, 'license'):gsub('license:', '')
+RegisterNetEvent('mz_queue:playerConnected', function()
+    local playerSource = source
+    local license = getQueueLicense(playerSource)
+    if not license then
+        return
+    end
 
-	if not connectedclients[license] then
-		connectedclients[license] = true
-		connectedclients.count += 1
-	end
+    if not connectedclients[license] then
+        connectedclients[license] = playerSource
+        connectedclients.count = connectedclients.count + 1
+    end
 
-	RemoveFromConnectingClients(license)
+    RemoveFromConnectingClients(license)
+    licensesBySource[playerSource] = license
 end)
 
-AddEventHandler("playerDropped", function()
-	local license = GetPlayerIdentifierByType(source, 'license'):gsub('license:', '')
+AddEventHandler('playerDropped', function()
+    local playerSource = source
+    local license = licensesBySource[playerSource] or getQueueLicense(playerSource)
+    licensesBySource[playerSource] = nil
+    if not license then
+        return
+    end
 
-	if connectedclients[license] then
-		connectedclients[license] = nil
-		connectedclients.count -= 1
-	end
+    if connectedclients[license] == playerSource then
+        connectedclients[license] = nil
+        connectedclients.count = connectedclients.count - 1
+    end
 
-	RemoveFromConnectingClients(license)
+    local queued = queuedclients[license]
+    if queued and queued.source == playerSource then
+        connectqueue:remove(queued)
+        queuedclients[license] = nil
+    end
+
+    local connecting = connectingclients[license]
+    if connecting and connecting.source == playerSource then
+        RemoveFromConnectingClients(license)
+    end
 end)

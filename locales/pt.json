@@ -3,5 +3,13 @@
   "queue_server_full": "Olá %s, o servidor está cheio, mas não se preocupe, você está na fila para entrar.",
   "queue_first_position": "Você é o primeiro na fila, só mais um instante...",
   "queue_position": "Sua posição na fila: %d de %d",
-  "queue_tired_of_waiting": "Cansado de esperar? Visite nosso [servidor do Discord](%s) e saiba como obter entrada prioritária."
+  "queue_tired_of_waiting": "Cansado de esperar? Visite nosso [servidor do Discord](%s) e saiba como obter entrada prioritária.",
+  "commands_queue_add": "Conceder prioridade na fila a um jogador.",
+  "commands_queue_remove": "Remover a prioridade na fila de um jogador.",
+  "commands_params_license": "Identificador de licença do jogador sem o prefixo license:.",
+  "commands_params_queue_timespan": "Duração da prioridade em dias (número inteiro positivo).",
+  "commands_notif_queue_add": "Prioridade na fila concedida por %d dia(s) à licença %s.",
+  "commands_notif_queue_add_invalid_timespan": "A duração deve ser um número inteiro positivo de dias.",
+  "commands_notif_queue_remove": "Prioridade na fila removida da licença %s.",
+  "commands_notif_queue_remove_not_found": "Nenhuma prioridade na fila encontrada para a licença %s."
 }

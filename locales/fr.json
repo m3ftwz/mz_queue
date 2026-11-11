@@ -3,5 +3,13 @@
   "queue_server_full": "Bonjour %s, le serveur est complet, mais ne vous inquiétez pas, vous êtes dans la file pour rejoindre.",
   "queue_first_position": "Vous êtes le premier de la file d'attente, encore un petit moment...",
   "queue_position": "Votre position dans la file : %d sur %d",
-  "queue_tired_of_waiting": "Marre d'attendre ? Rejoignez notre [serveur Discord](%s) et découvrez comment obtenir un accès prioritaire."
+  "queue_tired_of_waiting": "Marre d'attendre ? Rejoignez notre [serveur Discord](%s) et découvrez comment obtenir un accès prioritaire.",
+  "commands_queue_add": "Accorder une priorité d'accès à un joueur.",
+  "commands_queue_remove": "Retirer la priorité d'accès d'un joueur.",
+  "commands_params_license": "Identifiant de licence du joueur sans le préfixe license:.",
+  "commands_params_queue_timespan": "Durée de la priorité en jours (nombre entier positif).",
+  "commands_notif_queue_add": "Priorité d'accès accordée pour %d jour(s) à la licence %s.",
+  "commands_notif_queue_add_invalid_timespan": "La durée doit être un nombre entier positif de jours.",
+  "commands_notif_queue_remove": "Priorité d'accès retirée pour la licence %s.",
+  "commands_notif_queue_remove_not_found": "Aucune priorité d'accès trouvée pour la licence %s."
 }
