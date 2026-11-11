@@ -1,3 +1,4 @@
+local esx = require 'modules.esx.server'
 local connectqueue = Queue()
 local maxclients = GetConvarInt('sv_maxclients', 48)
 
@@ -21,7 +22,7 @@ local function getQueueLicense(playerSource)
 end
 
 local function getPriority(player)
-    if admins[player.license] then
+    if player.aceAdmin or admins[player.license] then
         return 1
     end
 
@@ -29,6 +30,11 @@ local function getPriority(player)
 end
 
 local function sortQueue()
+    for i = 1, #connectqueue do
+        local player = connectqueue[i]
+        player.aceAdmin = IsPlayerAceAllowed(player.source, 'mz_queue.admin')
+    end
+
     table.sort(connectqueue, function(a, b)
         local aPriority, bPriority = getPriority(a), getPriority(b)
         if aPriority == bPriority then
@@ -53,6 +59,13 @@ local function reserveSlot(player)
     connectingclients.count = connectingclients.count + 1
 end
 
+function ResetQueueAdmins()
+    -- Invalidate any refresh that is still loading data from a stopped ESX resource.
+    refreshVersion = refreshVersion + 1
+    admins, adminOverrides = {}, {}
+    sortQueue()
+end
+
 function SetQueueAdmin(playerSource, isAdmin)
     local license = getQueueLicense(playerSource)
     if not license then
@@ -74,7 +87,7 @@ function SetPrioritiesLists()
         MySQL.update.await('DELETE FROM `queue_priority` WHERE `expires_on` < NOW()')
 
         local priorityRows = MySQL.query.await('SELECT `identifier` FROM `queue_priority`')
-        local adminRows = MySQL.query.await("SELECT `identifier` FROM `users` WHERE `group` = 'admin'")
+        local adminRows = esx.loadAdmins()
         assert(type(priorityRows) == 'table' and type(adminRows) == 'table', 'Could not load queue priorities')
 
         local loadedPriorities, loadedAdmins = {}, {}
@@ -163,14 +176,17 @@ Citizen.CreateThreadNow(function()
             end
         end
 
-        if prioritiesReady and connectqueue:getSize() > 0
-            and connectedclients.count + connectingclients.count < maxclients then
-            local player = connectqueue:connect()
-            queuedclients[player.license] = nil
+        if prioritiesReady and connectqueue:getSize() > 0 then
+            -- ACE permissions can change while a player is waiting.
+            sortQueue()
+            if connectedclients.count + connectingclients.count < maxclients then
+                local player = connectqueue:connect()
+                queuedclients[player.license] = nil
 
-            if GetPlayerPing(player.source) ~= 0 then
-                -- Reserve before the deferred connection resumes or another player arrives.
-                reserveSlot(player)
+                if GetPlayerPing(player.source) ~= 0 then
+                    -- Reserve before the deferred connection resumes or another player arrives.
+                    reserveSlot(player)
+                end
             end
         end
 

@@ -23,6 +23,9 @@ local function server(options)
         ids = {}, pings = {}, accepted = {}, notifications = {}, logs = {}, queries = {},
         dbPriorities = options.priorities or {}, dbAdmins = options.admins or {},
         databaseReady = options.databaseReady ~= false,
+        hasUsersTable = options.esx == true,
+        resourceStates = { oxmysql = 'started', es_extended = options.esxState or (options.esx and 'started' or 'missing') },
+        aceAdmins = {},
     }, { __index = _G })
 
     function e.step(task)
@@ -112,7 +115,11 @@ local function server(options)
     e.Citizen = { CreateThreadNow = e.CreateThread }
     e.GetConvarInt = function() return options.maxclients or 1 end
     e.GetConvar = function(_, default) return default end
-    e.GetResourceState = function(name) return name == 'oxmysql' and 'started' or 'missing' end
+    e.GetResourceState = function(name) return e.resourceStates[name] or 'missing' end
+    e.IsPlayerAceAllowed = function(id, permission)
+        equal(permission, 'mz_queue.admin', 'admin ACE permission')
+        return e.aceAdmins[id] == true
+    end
     e.GetPlayerIdentifierByType = function(id) return e.ids[id] end
     e.GetPlayerPing = function(id)
         if e.pings[id] ~= nil then return e.pings[id] end
@@ -154,6 +161,9 @@ local function server(options)
         else
             assert(e.schemaReady, 'Query ran before schema initialization')
             if sql:find('SELECT', 1, true) then
+                if sql:find('FROM `users`', 1, true) then
+                    assert(e.hasUsersTable, 'Standalone database has no users table')
+                end
                 result = sql:find('queue_priority', 1, true) and rows(e.dbPriorities) or rows(e.dbAdmins)
             elseif sql:find('INSERT INTO', 1, true) then
                 e.dbPriorities[params[1]] = true
@@ -175,9 +185,9 @@ local function server(options)
     e.require = function(name)
         if not e.loaded[name] then
             e.loaded[name] = true
-            assert(loadfile(name:gsub('%.', '/') .. '.lua', 't', e))()
+            e.loaded[name] = assert(loadfile(name:gsub('%.', '/') .. '.lua', 't', e))() or true
         end
-        return true
+        return e.loaded[name]
     end
     for _, name in ipairs({ 'mysql', 'queue', 'connection', 'events', 'commands' }) do
         e.require('modules.' .. name .. '.server')
@@ -212,7 +222,7 @@ end)
 
 test('startup retries failed priority initialization', function()
     local e = server({ initialize = false })
-    e.dbHook = function(sql) if sql:find('FROM `users`', 1, true) then error('database unavailable') end end
+    e.dbHook = function(sql) if sql:find('SELECT `identifier` FROM `queue_priority`', 1, true) then error('database unavailable') end end
     e.require('server')
     local d = e.connect(2, 'joining')
     e.run(200)
@@ -223,7 +233,7 @@ test('startup retries failed priority initialization', function()
 end)
 
 test('bare, license-prefixed, and character-prefixed admin identifiers work', function()
-    local e = server({ admins = { bare = true, ['license:prefixed'] = true, ['char1:multi'] = true } })
+    local e = server({ esx = true, admins = { bare = true, ['license:prefixed'] = true, ['char1:multi'] = true } })
     e.occupy(1, 'occupied')
     local regular = e.connect(2, 'regular')
     e.connect(3, 'bare')
@@ -335,7 +345,7 @@ test('in-flight refresh keeps the previous complete priority lists active', func
     e.connect(3, 'target')
     e.run(60)
     e.dbPriorities.target = nil
-    e.dbHook = function(sql) if sql:find('FROM `users`', 1, true) then e.Wait(2000) end end
+    e.dbHook = function(sql) if sql:find('SELECT `identifier` FROM `queue_priority`', 1, true) then e.Wait(2000) end end
     local refresh = e.refresh()
     e.drop(1)
     e.run(1100)
@@ -352,7 +362,7 @@ test('failed refresh retains previously loaded priorities', function()
     e.connect(3, 'target')
     e.run(60)
     e.dbPriorities.target = nil
-    e.dbHook = function(sql) if sql:find('FROM `users`', 1, true) then error('query failed') end end
+    e.dbHook = function(sql) if sql:find('SELECT `identifier` FROM `queue_priority`', 1, true) then error('query failed') end end
     equal(e.refresh().result, false)
     e.drop(1)
     e.run(1100)
@@ -383,7 +393,7 @@ test('older overlapping refreshes cannot overwrite newer results', function()
 end)
 
 test('admin promotion applies immediately and survives stale SQL refreshes', function()
-    local e = server()
+    local e = server({ esx = true })
     e.occupy(1, 'occupied')
     e.connect(2, 'regular')
     e.connect(3, 'promoted')
@@ -396,7 +406,7 @@ test('admin promotion applies immediately and survives stale SQL refreshes', fun
 end)
 
 test('admin demotion is not reverted by an unsaved database role', function()
-    local e = server({ admins = { ['char1:demoted'] = true } })
+    local e = server({ esx = true, admins = { ['char1:demoted'] = true } })
     e.occupy(1, 'occupied')
     e.connect(2, 'regular')
     e.connect(3, 'demoted')
@@ -409,7 +419,7 @@ test('admin demotion is not reverted by an unsaved database role', function()
 end)
 
 test('role changes during a refresh survive publication of its database snapshot', function()
-    local e = server()
+    local e = server({ esx = true })
     e.occupy(1, 'occupied')
     e.connect(2, 'regular')
     e.connect(3, 'promoted')
@@ -446,6 +456,161 @@ test('disconnect cleanup uses the cached license when identifiers disappear', fu
     local d = e.connect(2, 'newcomer')
     e.run(100)
     assert(d.finished and not d.reason)
+end)
+
+local function countESXQueries(e)
+    local count = 0
+    for _, sql in ipairs(e.queries) do
+        if sql:find('FROM `users`', 1, true) then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+local function assertAdmissionOrder(e, expected)
+    e.drop(1)
+    for index, license in ipairs(expected) do
+        e.run(index * 1000 + 100)
+        equal(e.accepted[index].license, license, 'admission ' .. index)
+        e.occupy(e.accepted[index].source, license)
+        e.drop(e.accepted[index].source)
+    end
+end
+
+test('standalone startup and priority commands never require an ESX users table', function()
+    local e = server({ startup = true })
+    local d = e.connect(2, 'standalone')
+    e.run(100)
+    assert(d.finished and not d.reason)
+    e.command('addpriority', { license = 'target', queue_timespan = 7 })
+    equal(e.dbPriorities.target, true)
+    e.command('removepriority', { license = 'target' })
+    equal(e.dbPriorities.target, nil)
+    equal(countESXQueries(e), 0)
+end)
+
+test('installed but stopped or starting ESX does not enable admin lookups', function()
+    for _, state in ipairs({ 'stopped', 'starting' }) do
+        local e = server({ esx = true, esxState = state, admins = { formerAdmin = true } })
+        e.occupy(1, 'occupied')
+        e.connect(2, 'regular')
+        e.connect(3, 'formerAdmin')
+        e.run(60)
+        equal(countESXQueries(e), 0)
+        assertAdmissionOrder(e, { 'regular', 'formerAdmin' })
+    end
+end)
+
+test('standalone servers ignore ESX role events', function()
+    local e = server()
+    e.occupy(1, 'occupied')
+    e.connect(2, 'regular')
+    e.connect(3, 'later')
+    e.run(60)
+    e.emit('esx:setGroup', 0, 3, 'admin', 'user')
+    assertAdmissionOrder(e, { 'regular', 'later' })
+    equal(countESXQueries(e), 0)
+end)
+
+test('standalone ACE admins join ahead of paid priorities and regular players', function()
+    local e = server({ priorities = { paid = true } })
+    e.occupy(1, 'occupied')
+    e.connect(2, 'regular')
+    e.connect(3, 'paid')
+    e.aceAdmins[4] = true
+    e.connect(4, 'aceAdmin')
+    e.run(60)
+    assertAdmissionOrder(e, { 'aceAdmin', 'paid', 'regular' })
+    equal(countESXQueries(e), 0)
+end)
+
+test('granting ACE admin priority updates players already waiting', function()
+    local e = server({ priorities = { paid = true } })
+    e.occupy(1, 'occupied')
+    e.connect(2, 'regular')
+    e.connect(3, 'paid')
+    local promoted = e.connect(4, 'promoted')
+    e.run(60)
+    e.aceAdmins[4] = true
+    e.run(1100)
+    equal(promoted.card.body[3].text, 'queue_first_position')
+    e.drop(1)
+    e.run(2100)
+    equal(e.accepted[1].license, 'promoted')
+end)
+
+test('revoking ACE admin priority restores arrival order within the regular tier', function()
+    local e = server()
+    e.occupy(1, 'occupied')
+    e.connect(2, 'regular')
+    e.aceAdmins[3] = true
+    e.connect(3, 'demoted')
+    e.run(60)
+    e.aceAdmins[3] = nil
+    assertAdmissionOrder(e, { 'regular', 'demoted' })
+end)
+
+test('ESX can start after the queue and enable admin priority without a queue restart', function()
+    local e = server({ priorities = { paid = true } })
+    e.occupy(1, 'occupied')
+    e.connect(2, 'regular')
+    e.connect(3, 'paid')
+    e.connect(4, 'esxAdmin')
+    e.run(60)
+    equal(countESXQueries(e), 0)
+    e.hasUsersTable = true
+    e.dbAdmins['char1:esxAdmin'] = true
+    e.resourceStates.es_extended = 'started'
+    equal(e.emit('onResourceStart', 0, 'es_extended').result, nil)
+    equal(countESXQueries(e), 1)
+    assertAdmissionOrder(e, { 'esxAdmin', 'paid', 'regular' })
+end)
+
+test('stopping ESX clears its roles while keeping ACE admins and paid priorities', function()
+    local e = server({ esx = true, admins = { esxAdmin = true }, priorities = { paid = true } })
+    e.occupy(1, 'occupied')
+    e.connect(2, 'regular')
+    e.connect(3, 'esxAdmin')
+    e.aceAdmins[4] = true
+    e.connect(4, 'aceAdmin')
+    e.connect(5, 'paid')
+    e.run(60)
+    local queriesBeforeStop = countESXQueries(e)
+    e.resourceStates.es_extended = 'stopped'
+    e.emit('onResourceStop', 0, 'es_extended')
+    equal(e.refresh().result, true)
+    equal(countESXQueries(e), queriesBeforeStop)
+    assertAdmissionOrder(e, { 'aceAdmin', 'paid', 'regular', 'esxAdmin' })
+end)
+
+test('stopping ESX invalidates admin data from an in-flight refresh', function()
+    local e = server({ esx = true, admins = { esxAdmin = true } })
+    e.occupy(1, 'occupied')
+    e.connect(2, 'regular')
+    e.connect(3, 'esxAdmin')
+    e.run(60)
+    e.dbHook = function(sql) if sql:find('FROM `users`', 1, true) then e.Wait(200) end end
+    local refresh = e.refresh()
+    e.resourceStates.es_extended = 'stopped'
+    e.emit('onResourceStop', 0, 'es_extended')
+    e.run(300)
+    equal(refresh.result, false)
+    assertAdmissionOrder(e, { 'regular', 'esxAdmin' })
+end)
+
+test('ESX restart reloads roles without reviving stale live overrides', function()
+    local e = server({ esx = true })
+    e.occupy(1, 'occupied')
+    e.connect(2, 'regular')
+    e.connect(3, 'unsavedAdmin')
+    e.run(60)
+    e.emit('esx:setGroup', 0, 3, 'admin', 'user')
+    e.resourceStates.es_extended = 'stopped'
+    e.emit('onResourceStop', 0, 'es_extended')
+    e.resourceStates.es_extended = 'started'
+    e.emit('onResourceStart', 0, 'es_extended')
+    assertAdmissionOrder(e, { 'regular', 'unsavedAdmin' })
 end)
 
 local failures = 0

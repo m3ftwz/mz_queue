@@ -9,6 +9,32 @@ A simple and efficient queue system for FiveM servers with real-time priorities 
 
 ## Documentation
 
+### Requirements
+
+- [oxmysql](https://github.com/overextended/oxmysql)
+- [ox_lib](https://github.com/overextended/ox_lib)
+
+No framework is required. The queue stores timed priorities in its own `queue_priority` table, which is created automatically.
+
+### Standalone setup
+
+Start the dependencies before the queue:
+
+```cfg
+ensure oxmysql
+ensure ox_lib
+ensure mz_queue
+```
+
+To give an administrator the highest queue priority, grant the `mz_queue.admin` ACE permission. For example, add this to `server.cfg`, replacing `YOUR_LICENSE_HASH` with the player's license hash:
+
+```cfg
+add_ace group.admin mz_queue.admin allow
+add_principal identifier.license:YOUR_LICENSE_HASH group.admin
+```
+
+The `addpriority` and `removepriority` commands remain restricted to `group.admin` through FiveM ACE permissions and can also be run from the server console.
+
 ### Commands usage
 
 1. **addpriority**: grant priority queue privileges to a player for a positive whole number of days, after which the privilege will expire.
@@ -36,19 +62,22 @@ A simple and efficient queue system for FiveM servers with real-time priorities 
 The priority lists automatically refresh:
 - at the beginning of every hour (e.g., 11:00, 12:00, etc.)
 - everytime a priority is added or removed
-- everytime a user is set or unset as an admin
+- whenever an ESX user's admin group changes
+- when ESX starts or stops
 
 Changes also reorder players already waiting in the queue. Admins join before priority players, followed by regular players; arrival order is preserved within each group.
+
+ACE admin permissions are rechecked every second while players are queued, so permission changes also update their positions.
 
 ## Download
 
 https://github.com/m3ftwz/mz_queue/releases/latest/download/mz_queue.zip
 
-## Supported frameworks
+## Optional ESX compatibility
 
-Compatibility or support for third-party resources is not guaranteed.
+When [ESX](https://github.com/esx-framework/esx_core) is running as `es_extended`, players with the `admin` group automatically receive the highest queue priority. Existing ESX installations keep their admin priority and live group updates without additional configuration. ACE admin permissions also work with ESX.
 
-- [esx](https://github.com/esx-framework/esx_core)
+The integration is detected automatically and handles ESX starting, stopping, or restarting. When ESX is absent or stopped, the queue does not query its `users` table or apply ESX group events. To load ESX admin priority immediately at startup, start `es_extended` before `mz_queue`.
 
 ## Features
 
