@@ -599,6 +599,29 @@ test('stopping ESX invalidates admin data from an in-flight refresh', function()
     assertAdmissionOrder(e, { 'regular', 'esxAdmin' })
 end)
 
+test('stopping ESX during a priority update still applies the saved priority', function()
+    local e = server({ esx = true })
+    e.occupy(1, 'occupied')
+    e.connect(2, 'regular')
+    e.connect(3, 'promoted')
+    e.run(60)
+    local delayed = false
+    e.dbHook = function(sql)
+        if not delayed and sql:find('SELECT `identifier` FROM `queue_priority`', 1, true) then
+            delayed = true
+            e.Wait(200)
+        end
+    end
+    local update = e.command('addpriority', { license = 'promoted', queue_timespan = 7 })
+    assert(not update.finished)
+    e.resourceStates.es_extended = 'stopped'
+    e.hasUsersTable = false
+    e.emit('onResourceStop', 0, 'es_extended')
+    e.run(300)
+    assert(update.finished)
+    assertAdmissionOrder(e, { 'promoted', 'regular' })
+end)
+
 test('ESX restart reloads roles without reviving stale live overrides', function()
     local e = server({ esx = true })
     e.occupy(1, 'occupied')

@@ -19,5 +19,6 @@ AddEventHandler('onResourceStop', function(resource)
     if resource == esx.resource then
         esx.enabled = false
         ResetQueueAdmins()
+        SetPrioritiesLists()
     end
 end)
